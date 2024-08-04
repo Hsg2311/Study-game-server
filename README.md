@@ -21,3 +21,5 @@ $(SolutionDir)Libraries\
 ```$(SolutionDir)Binary\$(Configuration)\```,   
 ```ServerCore```는   
 ```$(SolutionDir)Libraries\$(configuration)\```으로 설정한다.
+## Visual Studio file filters
+![image](https://github.com/user-attachments/assets/77aad9df-f55c-470a-b9c6-5f0aad940569)
