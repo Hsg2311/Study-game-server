@@ -4,65 +4,40 @@
 #include <thread>
 #include <atomic>
 #include <mutex>
+#include "AccountManager.h"
+#include "UserManager.h"
 
-vector<int32> v;
-
-// Mutual Exlusive (상호배타적)
-mutex m;
-
-// RAII (Resource Acquisition Is Initialization)
-// mutex의 lock, uulock을 생성자, 소멸자에서 처리하면 편리하다.
-template<class T>
-class LockGuard		// 표준에 std::lock_guard가 있음. LockGuard는 느낌을 파악하기 위함.
+void Func1( )
 {
-public:
-	LockGuard( T& mutex )
-		: mutex_( &mutex )
-	{
-		mutex_->lock( );
+	for ( int32 i = 0; i < 1000; ++i ) {
+		UserManager::Instance( ).ProcessSave( );
 	}
+}
 
-	~LockGuard( )
-	{
-		mutex_->unlock( );
-	}
-
-private:
-	T* mutex_;
-};
-
-void Push( )
+void Func2( )
 {
-	for ( int32 i = 0; i < 10000; ++i ) {
-		// 자물쇠 잠그기
-		LockGuard<std::mutex> lockGuard{ m };	// std::lock_guard<std::mutex> lockGuard{ m }; 와 같음.
-
-		// std::unique_lock<std::mutex> uniqueLock{ m, std::defer_lock };
-		// defer_lock : lock을 하지 않고 생성만 함. 나중에 lock을 하기 위함.
-		// uniqueLock.lock( );	// lock을 하고 싶을 때 사용.
-		// 소멸자에서 unlock을 하기 때문에 unlock을 하지 않아도 됨.
-
-		//m.lock( );
-		//m.lock( );	// 재귀 lock 허용하는 경우도 있음.
-
-		v.push_back( i );
-
-		if ( i == 5000 )
-			break;
-
-		// 자물쇠 풀기
-		//m.unlock( );
-		//m.unlock( );
+	for ( int32 i = 0; i < 1000; ++i ) {
+		AccountManager::Instance( ).ProcessLogin( );
 	}
 }
 
 int main()
 {
-	std::thread t1{ Push };
-	std::thread t2{ Push };
+	std::thread t1{ Func1 };
+	std::thread t2{ Func2 };
 
 	t1.join( );
 	t2.join( );
 
-	cout << v.size( ) << endl;
+	cout << "Jobs Done!" << endl;
+
+
+	// 참고
+	mutex m1;
+	mutex m2;
+	std::lock( m1, m2 );	// m1.lock(); m2.lock();
+
+	// adopt_lock : 이미 lock된 상태니까, 나중에 소멸될 때 풀어주기만 해.
+	lock_guard<mutex> g1{ m1, std::adopt_lock };
+	lock_guard<mutex> g2{ m2, std::adopt_lock };
 }
