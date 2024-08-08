@@ -8,52 +8,56 @@
 
 mutex m;
 queue<int32> q;
-HANDLE handle;
+
+// 참고) CV는 User-Level Object (커널 오브젝트 X )
+condition_variable cv;
 
 void Producer( )
 {
 	while ( true ) {
+		// 1) Lock을 걸고
+		// 2) 공유 변수 값을 수정
+		// 3) Lock을 풀고
+		// 4) 조건변수를 통해 다른 쓰레드에게 통지
+
 		{
 			unique_lock<mutex> lock{ m };
 			q.push( 100 );
 		}
 
-		::SetEvent( handle );	// 커널 오브젝트의 Signal 상태를 true로 변경
+		cv.notify_one( );	// wait 중인 쓰레드가 있으면 딱 1개를 깨운다.
 
-		this_thread::sleep_for( 1000ms );
+		//this_thread::sleep_for( 1000ms );
 	}
 }
 
 void Consumer( )
 {
 	while ( true ) {
-		::WaitForSingleObject( handle, INFINITE );	// 커널 오브젝트가 Signal(true) 상태면 진행, Non-Signal(false) 상태면 스레드가 잠듦. CPU 점유율을 낮추기 위해 사용
-		// 다시 이 스레드가 실행이 되면, CreateEvent 함수의 bManualReset이 false(Auto)기 때문에
-		// Signal 상태가 자동으로 Non-Signal 상태로 변경됨.
-
 		unique_lock<mutex> lock{ m };
+		cv.wait( lock, []( ) { return q.empty( ) == false; } );		// lock이 걸려 있으면 따로 다시 걸지는 않음.
+		// 1) Lock을 걸고
+		// 2) 조건 확인
+		// - 만족 O => 빠져 나와서 이어서 코드를 진행
+		// - 만족 X => Lock을 풀어주고 대기 상태
+
+		// 그런데 notify_one을 했으면 항상 조건식을 만족하는 거 아닐까?
+		// Spurious Wakeup : 조건이 만족하지 않았는데도 깨어나는 현상 (가짜 기상?)이 발생할 수 있음
+		// notify_one할 때 lock을 걸고 있는 것이 아니기 때문
 		
-		if ( q.empty( ) == false ) {
+		{
 			int32 data = q.front( );
 			q.pop( );
-			cout << data << endl;
+			cout << q.size( ) << endl;
 		}
 	}
 }
 
 int main()
 {
-	// 커널 오브젝트
-	// Usage Count : 몇 개의 스레드가 이 오브젝트를 사용하고 있는지
-	// Signal (파란불) / Non-Signal (빨간불) << bool
-	// Auto / Manual << bool
-	handle = ::CreateEvent( nullptr/*보안속성*/, false, false/*true : Signal, false : Non-Signal*/, nullptr );
-	
 	thread producer{ Producer };
 	thread consumer{ Consumer };
 
 	producer.join( );
 	consumer.join( );
-
-	::CloseHandle( handle );
 }
