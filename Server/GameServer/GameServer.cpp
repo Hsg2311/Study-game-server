@@ -15,29 +15,17 @@ public:
 		bool expected = false;
 		bool desired = true;
 
-		// CAS 의사 코드
-		/*
-		if ( locked_ == expected ) {
-			expected = locked_;
-			locked_ = desired;
-			return true;
-		}
-		else {
-			expected = locked_;
-			return false;
-		}
-		*/
-		// 위의 의사 코드가 아래의 atomic 타입의 compare_exchange_strong 함수로 대체되면서
-		// atomic한 동작이 이루어짐.
-
 		while ( locked_.compare_exchange_strong( expected, desired ) == false ) {
 			expected = false;
+
+			//this_thread::sleep_for( std::chrono::milliseconds( 100 ) );	// Or this_thread::sleep_for( 100ms );
+			this_thread::sleep_for( 0ms );
+			//this_thread::yield( );
 		}
 	}
 
 	void unlock( )
 	{
-		//locked_ = false;
 		locked_.store( false );
 	}
 
